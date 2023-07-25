@@ -1,32 +1,19 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
+Library/
+Temp/
+1.exe
+1_Data
+*.sln
+*.csproj
+*.sln
+*.userprefs
+*.unityproj
+*.DS_Store
+/ClassDiagram1.cd
+.vs/
+obj/
+Assembly-CSharp.csproj.user
+CounterSniper.rar
+Assets/etc.meta
+UnityPlayer.dll
+New Unity Project.rar
+gamesave.sav
