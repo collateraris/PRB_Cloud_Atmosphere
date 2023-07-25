@@ -230,6 +230,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e05ca8e8ab6c3944b4eddf951b50252, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sun: {fileID: 0}
+  sunLight: {fileID: 0}
+  timeOfDay: 21.89
+  secondsPerMinute: 60
+  secondsPerHour: 0
+  secondsPerDay: 0
+  timeMultiplier: 1
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0
@@ -297,7 +304,7 @@ Camera:
   m_CullingMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  m_RenderingPath: -1
+  m_RenderingPath: 3
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
   m_TargetEye: 3
