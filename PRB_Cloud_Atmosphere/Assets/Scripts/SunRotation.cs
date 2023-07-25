@@ -20,10 +20,14 @@ public class SunMovement : MonoBehaviour
 
     public float timeMultiplier = 1;
 
+    private Vector3 prevLocalEulerAngles;
+
     void Start()
     {
         sun = gameObject;
         sunLight = gameObject.GetComponent<Light>();
+
+        prevLocalEulerAngles = new Vector3(0, 0, 0);
 
         //secondsPerHour = secondsPerMinute * 60;
         //secondsPerDay = secondsPerHour * 24;
@@ -35,6 +39,13 @@ public class SunMovement : MonoBehaviour
         SunUpdate();
     }
 
+    private float totalRun = 1.0f;
+
+    private float DayLength = 0.1f;
+    private float _rotationSpeed;
+
+    private bool bRotateByUser = true;
+
     public void SunUpdate()
     {
         //30,-30,0 = sunrise
@@ -42,7 +53,63 @@ public class SunMovement : MonoBehaviour
         //180,-30,0 = sunset
         //-90,-30,0 = Midnight
 
-        //sun.transform.localRotation = Quaternion.Euler((timeOfDay / 24) * 360 - 0, -30, 0);
-        sun.transform.localEulerAngles = new Vector3(Time.time * timeMultiplier, -30, 0);
+        //Keyboard commands
+
+        UpdateBaseInput();
+    }
+
+    private void UpdateBaseInput()
+    { //returns the basic values, if it's 0 than it's not active.
+
+        float direction = 1;
+
+        if (Input.GetKey(KeyCode.M))
+        {
+            bRotateByUser = !bRotateByUser;
+        }
+
+        if (Input.GetKey(KeyCode.Q))
+        {
+            direction = -1;
+            if (bRotateByUser)
+            {
+                _rotationSpeed = direction * Time.deltaTime / DayLength;
+                transform.Rotate(0, _rotationSpeed, 0);
+            }
+        }
+        if (Input.GetKey(KeyCode.E))
+        {
+            direction = 1;
+            if (bRotateByUser)
+            {
+                _rotationSpeed = direction * Time.deltaTime / DayLength;
+                transform.Rotate(0, _rotationSpeed, 0);
+            }
+        }
+
+        if (Input.GetKey(KeyCode.R))
+        {
+            direction = 1;
+            if (bRotateByUser)
+            {
+                _rotationSpeed = direction * Time.deltaTime / DayLength;
+                transform.Rotate(_rotationSpeed, 0, 0);
+            }
+        }
+        if (Input.GetKey(KeyCode.F))
+        {
+            direction = -1;
+            if (bRotateByUser)
+            {
+                _rotationSpeed = direction * Time.deltaTime / DayLength;
+                transform.Rotate(_rotationSpeed, 0, 0);
+            }
+        }
+
+        if (!bRotateByUser)
+        {
+            _rotationSpeed = Time.deltaTime / DayLength;
+            transform.Rotate(0, _rotationSpeed, 0);
+        }
     }
 }
