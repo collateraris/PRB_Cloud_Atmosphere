@@ -12,6 +12,7 @@ Shader "Atmosphere/SunnySky"
 			#pragma target 3.0
 			#pragma vertex vert
 			#pragma fragment frag
+			#include "Atmospheric.cginc"
 		
 			struct v2f 
 			{
@@ -19,6 +20,7 @@ Shader "Atmosphere/SunnySky"
     			float2  uv : TEXCOORD0;
     			float3 worldPos : TEXCOORD1;
 			};
+			
 
 			v2f vert(appdata_base v)
 			{
