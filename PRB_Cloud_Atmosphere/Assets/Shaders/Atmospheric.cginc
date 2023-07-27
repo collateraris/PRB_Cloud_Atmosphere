@@ -1,3 +1,5 @@
+#define M_PI 3.141592
+
 float3 EARTH_POS;
 float3 SUN_DIR;
 float SUN_INTENSITY;

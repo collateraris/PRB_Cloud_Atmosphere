@@ -33,9 +33,13 @@ Shader "Atmosphere/SunnySky"
 			
 			float4 frag(v2f IN) : COLOR
 			{
-				float3 col = float3(1., 0.5, 0.);
+				float3 dir = normalize(IN.worldPos-_WorldSpaceCameraPos);
+			    
+			    float sun = step(cos(M_PI / 360.0 * 5), dot(dir, SUN_DIR));
+			    
+			    float3 sunColor = float3(sun,sun,sun) * SUN_INTENSITY;
 		
-				return float4(col, 1.0);
+				return float4(sunColor, 1.0);
 			}
 			
 			ENDCG
