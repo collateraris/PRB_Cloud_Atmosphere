@@ -39,8 +39,6 @@ public class SunMovement : MonoBehaviour
         SunUpdate();
     }
 
-    private float totalRun = 1.0f;
-
     private float DayLength = 0.1f;
     private float _rotationSpeed;
 

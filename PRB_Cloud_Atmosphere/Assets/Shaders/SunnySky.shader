@@ -38,6 +38,13 @@ Shader "Atmosphere/SunnySky"
 			    float sun = step(cos(M_PI / 360.0 * 5), dot(dir, SUN_DIR));
 			    
 			    float3 sunColor = float3(sun,sun,sun) * SUN_INTENSITY;
+
+				float2 intersect = raySphereIntersect(EARTH_POS, dir, ATMOSPHERE_RADIUS);
+
+				// Here's the trick - we clamp the sampling length to keep precision at the horizon
+				// This introduces banding, but we can compensate for that by scaling the clamp according to horizon angle
+				if (intersect.y < 0)
+					sunColor = float3(0.5, 0.5, 0.5);
 		
 				return float4(sunColor, 1.0);
 			}
