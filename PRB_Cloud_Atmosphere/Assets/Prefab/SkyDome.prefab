@@ -97,3 +97,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_sunnySkyMaterial: {fileID: 2100000, guid: 27946f455aaabb64e9674b0466ccf315, type: 2}
+  m_sunIntensity: 100
+  m_AtmosphereSamples: 4
+  m_AtmosphereRadius: 6471000
+  m_ObservationPos: {x: 0, y: 6360010, z: 0}
+  m_sun: {fileID: 0}

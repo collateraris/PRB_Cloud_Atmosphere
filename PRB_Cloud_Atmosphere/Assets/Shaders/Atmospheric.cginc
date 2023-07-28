@@ -2,6 +2,7 @@
 
 #define RAYLEIGH_HEIGHT   8e3
 #define MIE_HEIGHT        1.2e3
+#define G          0.75
 
 #define BETA_RAY   float3(5.8e-6, 13.5e-6, 33.1e-6) // vec3(5.5e-6, 13.0e-6, 22.4e-6)
 #define BETA_MIE   float3(3e-6,3e-6,3e-6)
@@ -27,66 +28,84 @@ float2 raySphereIntersect(in float3 origin, in float3 dir, in float radius) {
     return res;
 }
 
-float phaseFunMieScattering(float cosTheta)
+float phaseFunMieScattering(float cosTheta, in float g)
+{
+    float gg = g * g;
+	return (1.0 - gg) / (4.0 * M_PI * pow(1.0 + gg - 2.0 * g * cosTheta, 1.5));
+}
+
+float GetPlanetRadius()
+{
+    return EARTH_POS.y;
+}
+
+float GetAtmosphereHeight()
+{
+    return ATMOSPHERE_RADIUS - GetPlanetRadius();
+}
+
+float2 calculateDensities(in float3 pos) {
+    float planetRadius = GetPlanetRadius();
+	float height = length(pos) - GetPlanetRadius(); // Height above surface
+	float2 density;
+	density.x = exp(-height / RAYLEIGH_HEIGHT);
+	density.y = exp(-height / MIE_HEIGHT);
+    return density;
+}
+
+float phaseFunRayScattering(float cosTheta)
 {
     return 3 * M_PI / 16 * (1 + cosTheta * cosTheta);
 }
 
+
 float3 atmosphereRealTime(in float3 dir, in float3 lightDir)
 {
     float2 intersect = raySphereIntersect(EARTH_POS, dir, ATMOSPHERE_RADIUS);
-    
 
-    //check ray intersection algo
-    float3 samplePos = EARTH_POS + dir * intersect.x;
-    float len = length(samplePos);
-    if (abs(len - ATMOSPHERE_RADIUS) < 1e-3)
-        return float3(0., 1., 0.);
-    return float3(1., 0., 0.);
+    float rayOffset = max(0.0, intersect.x);
+    float maxLen = GetAtmosphereHeight();
+    float i_delta = min(intersect.y - rayOffset, maxLen) / ATMOSPHERE_SAMPLES;
+    rayOffset += i_delta * 0.5;
 
-    // float rayEntryDelta = intersect.x;
-    // float stepSize = rayEntryDelta / ATMOSPHERE_SAMPLES;
+    float3 sumMie = float3(0, 0, 0);
+    float3 sumRay = float3(0, 0, 0);
 
-    // float3 sumMie = float3(0, 0, 0);
+    float2 opticalDepth = float2(0, 0);
 
-    // for (int i = 0; i <= ATMOSPHERE_SAMPLES; i++)
-    // {
-    //     float3 samplePos = EARTH_POS + dir * stepSize * i;
+    for (int i = 0; i <= ATMOSPHERE_SAMPLES; i++)
+    {
+        float3 samplePos = EARTH_POS + dir * rayOffset;
 
-    //     float2 lightIntersect = raySphereIntersect(samplePos, SUN_DIR, ATMOSPHERE_RADIUS);
+        float2 lightIntersect = raySphereIntersect(samplePos, SUN_DIR, ATMOSPHERE_RADIUS);
 
-    //     float rayLightEntryDelta = lightIntersect.x;
-    //     float lightStepSize = rayLightEntryDelta / ATMOSPHERE_SAMPLES;
+        float j_delta = lightIntersect.y / ATMOSPHERE_SAMPLES;
+        float lightRayOffset = j_delta;
 
-    //     float lightAXi_MieOpticalDepth = 0.;
-    //     float planetRadius = EARTH_POS.y;
+        float2 lightOpticalDepth = float2(0, 0);
 
-    //     //AXi optical depth
-    //     for (int j = 0; j <= ATMOSPHERE_SAMPLES; j++)
-    //     {
-    //         float3 lightSamplePos = samplePos + SUN_DIR * lightStepSize * i;
+        //AXi optical depth
+        for (int j = 0; j <= ATMOSPHERE_SAMPLES; j++)
+        {
+            float3 lightSamplePos = samplePos + SUN_DIR * lightRayOffset;
 
-    //         float height = lightSamplePos.y - planetRadius;
-    //         lightAXi_MieOpticalDepth += exp(-height / MIE_HEIGHT) * lightStepSize;
-    //     }
+            lightOpticalDepth += calculateDensities(lightSamplePos) * j_delta;
 
-    //     float XiO_StepSize = length(EARTH_POS - samplePos) / ATMOSPHERE_SAMPLES;
-    //     float XiO_MieOpticalDepth = 0.;
-    //     //XiO optical depth
-    //     for (int j = 0; j <= ATMOSPHERE_SAMPLES; j++)
-    //     {
-    //         float3 XiO_SamplePos = EARTH_POS + dir * XiO_StepSize * i;
+            lightRayOffset += j_delta;
+        }
 
-    //         float height = XiO_SamplePos.y - planetRadius;
-    //         XiO_MieOpticalDepth += exp(-height / MIE_HEIGHT) * XiO_StepSize;
-    //     }
+        float2 densities = calculateDensities(samplePos) * i_delta;
+        opticalDepth += densities;
 
-    //     float height = samplePos.y - planetRadius;
-    //     sumMie += exp(BETA_MIE * (lightAXi_MieOpticalDepth + XiO_MieOpticalDepth)) * BETA_MIE * exp(-height / MIE_HEIGHT) * stepSize;
-    // }
+        float3 scattered = exp(-(BETA_RAY * (opticalDepth.x + lightOpticalDepth.x) + BETA_MIE * (opticalDepth.y + lightOpticalDepth.y)));
+        sumRay += scattered * densities.x;
+        sumMie += scattered * densities.y;
 
-    // float cosTheta = dot(dir, lightDir);
+        rayOffset += i_delta;
+    }
 
-    // return SUN_INTENSITY * phaseFunMieScattering(cosTheta) * sumMie;
+    float cosTheta = dot(dir, lightDir);
+
+    return max(phaseFunMieScattering(cosTheta, G) * sumMie + phaseFunRayScattering(cosTheta)* sumRay, 0);
 
 }

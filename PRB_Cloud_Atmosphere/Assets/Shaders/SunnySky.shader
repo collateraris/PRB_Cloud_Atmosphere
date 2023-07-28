@@ -41,8 +41,11 @@ Shader "Atmosphere/SunnySky"
 			    float3 sunColor = float3(sun,sun,sun) * SUN_INTENSITY;
 
 				float sunDir = normalize(SUN_DIR);
-				sunColor = atmosphereRealTime(dir, sunDir);
-				//sunColor = float3(1., 0., 1.);
+				sunColor += atmosphereRealTime(dir, normalize(SUN_DIR));
+				sunColor += atmosphereRealTime(dir, normalize(-SUN_DIR));
+
+				sunColor=sunColor/(1+sunColor);
+				sunColor = pow(sunColor, float3(1.0 / 2.2,1.0 / 2.2,1.0 / 2.2));
 		
 				return float4(sunColor, 1.0);
 			}
