@@ -8,6 +8,7 @@ Shader "Atmosphere/SunnySky"
 			Cull Front
 			
 			CGPROGRAM
+			#pragma enable_d3d11_debug_symbols
 			#include "UnityCG.cginc"
 			#pragma target 3.0
 			#pragma vertex vert
@@ -35,16 +36,13 @@ Shader "Atmosphere/SunnySky"
 			{
 				float3 dir = normalize(IN.worldPos-_WorldSpaceCameraPos);
 			    
-			    float sun = step(cos(M_PI / 360.0 * 5), dot(dir, SUN_DIR));
+			    float sun = step(cos(M_PI / 360.0 * 10), dot(dir, SUN_DIR));
 			    
 			    float3 sunColor = float3(sun,sun,sun) * SUN_INTENSITY;
 
-				float2 intersect = raySphereIntersect(EARTH_POS, dir, ATMOSPHERE_RADIUS);
-
-				// Here's the trick - we clamp the sampling length to keep precision at the horizon
-				// This introduces banding, but we can compensate for that by scaling the clamp according to horizon angle
-				if (intersect.y < 0)
-					sunColor = float3(0.5, 0.5, 0.5);
+				float sunDir = normalize(SUN_DIR);
+				sunColor = atmosphereRealTime(dir, sunDir);
+				//sunColor = float3(1., 0., 1.);
 		
 				return float4(sunColor, 1.0);
 			}

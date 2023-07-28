@@ -9,7 +9,7 @@ public class SunnySky : MonoBehaviour
     public float m_sunIntensity = 100.0f;
     public int m_AtmosphereSamples = 32;
     public float m_AtmosphereRadius = 6471000;
-    public Vector3 m_ObservationPos = new Vector3(0.0f, 6360010.0f, 0.0f);
+    public Vector3 m_ObservationPos = new Vector3(0.0f, 6371000.0f, 0.0f);
     public GameObject m_sun;
 
     // Start is called before the first frame update
