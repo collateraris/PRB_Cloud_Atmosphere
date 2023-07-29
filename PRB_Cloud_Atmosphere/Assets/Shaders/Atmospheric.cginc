@@ -15,15 +15,93 @@
 #define RES_MU_S 32.0
 #define RES_NU 8.0
 
+#define cloudSpeed 0.02
+#define cloudHeight 1600.0
+#define cloudThickness 500.0
+#define cloudMinHeight cloudHeight
+#define cloudMaxHeight (cloudThickness + cloudMinHeight)
+#define cloudDensity 0.03
+
+
+float bayer2(float2 a){
+    a = floor(a);
+    return frac( dot(a, float2(.5, a.y * .75)) );
+}
+
+#define bayer4(a)   (bayer2( .5*(a))*.25+bayer2(a))
+#define bayer8(a)   (bayer4( .5*(a))*.25+bayer2(a))
+#define bayer16(a)  (bayer8( .5*(a))*.25+bayer2(a))
+#define bayer32(a)  (bayer16(.5*(a))*.25+bayer2(a))
+#define bayer64(a)  (bayer32(.5*(a))*.25+bayer2(a))
+#define bayer128(a) (bayer64(.5*(a))*.25+bayer2(a))
+
 
 int ATMOSPHERE_SAMPLES;
 float ATMOSPHERE_RADIUS;
 float3 EARTH_POS;
 float3 SUN_DIR;
 float SUN_INTENSITY;
+float iTime;
 
-sampler2D _Transmittance, _Irradiance;
+sampler2D _Transmittance, _Irradiance, _PerlinNoise2D;
 sampler3D _Inscatter;
+
+float GetPlanetRadius()
+{
+    return EARTH_POS.y;
+}
+
+float GetAtmosphereHeight()
+{
+    return ATMOSPHERE_RADIUS - GetPlanetRadius();
+}
+
+float Get3DNoise(float3 pos) 
+{
+    float p = floor(pos.z);
+    float f = pos.z - p;
+    
+    const float invNoiseRes = 1.0 / 64.0;
+    
+    float zStretch = 17.0 * invNoiseRes;
+    
+    float2 coord = pos.xy * invNoiseRes + (p * zStretch);
+    
+    float2 noise = float2(tex2D(_PerlinNoise2D, coord).x,
+					  tex2D(_PerlinNoise2D, coord + zStretch).x);
+    
+    return lerp(noise.x, noise.y, f);
+}
+
+float getClouds(float3 p)
+{
+    p = float3(p.x, length(p + EARTH_POS) - GetPlanetRadius(), p.z);
+    
+    if (p.y < cloudMinHeight || p.y > cloudMaxHeight)
+        return 0.0;
+    
+    float time = iTime * cloudSpeed;
+    float3 movement = float3(time, 0.0, time);
+    
+    float3 cloudCoord = (p * 0.001) + movement;
+    
+	float noise = Get3DNoise(cloudCoord) * 0.5;
+    	  noise += Get3DNoise(cloudCoord * 2.0 + movement) * 0.25;
+    	  noise += Get3DNoise(cloudCoord * 7.0 - movement) * 0.125;
+    	  noise += Get3DNoise((cloudCoord + movement) * 16.0) * 0.0625;
+    
+    const float top = 0.004;
+    const float bottom = 0.01;
+    
+    float horizonHeight = p.y - cloudMinHeight;
+    float treshHold = (1.0 - exp2(-bottom * horizonHeight)) * exp2(-top * horizonHeight);
+    
+    float clouds = smoothstep(0.55, 0.6, noise);
+          clouds *= treshHold;
+    
+    return clouds * cloudDensity;
+}
+
 
 float3 hdr(float3 L) 
 {
@@ -156,16 +234,6 @@ float phaseFunMieScattering(float cosTheta, in float g)
 	return (1.0 - gg) / (4.0 * M_PI * pow(1.0 + gg - 2.0 * g * cosTheta, 1.5));
 }
 
-float GetPlanetRadius()
-{
-    return EARTH_POS.y;
-}
-
-float GetAtmosphereHeight()
-{
-    return ATMOSPHERE_RADIUS - GetPlanetRadius();
-}
-
 float2 calculateDensities(in float3 pos) {
     float planetRadius = GetPlanetRadius();
 	float height = length(pos) - GetPlanetRadius(); // Height above surface
@@ -180,6 +248,29 @@ float phaseFunRayScattering(float cosTheta)
     return 3 * M_PI / 16 * (1 + cosTheta * cosTheta);
 }
 
+float3 calculateVolumetricClouds(in float3 dir)
+{
+    float bottomSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMinHeight).y;
+    float topSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMaxHeight).y;
+    
+    float3 startPos = dir * bottomSphere;
+    float3 endPos = dir * topSphere;
+
+    float3 delta = (endPos - startPos) / ATMOSPHERE_SAMPLES;
+    float3 cloudPos = startPos + dir * delta;
+
+    float i_delta  = length(delta);
+
+    float3 cloudRes = float3(0., 0., 0.);
+
+    for (int i = 0; i <= ATMOSPHERE_SAMPLES; i++)
+    {
+        cloudRes += getClouds(cloudPos) * i_delta;
+        cloudPos += delta;
+    }
+
+    return cloudRes;
+}
 
 float3 atmosphereRealTime(in float3 dir, in float3 lightDir)
 {

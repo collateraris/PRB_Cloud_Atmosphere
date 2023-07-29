@@ -34,8 +34,10 @@ public class SunnySky : MonoBehaviour
 
     private Texture3D m_inscatter;
 
+    public Texture2D m_perlinNoise2D;
+
     // Start is called before the first frame update
-        private void Start()
+    private void Start()
         {
             //NOTE - These raw files will not be included by Unity in the build so you will get a 
             //error saying they are missing. You will need to manually place them in the build folder
@@ -83,12 +85,14 @@ public class SunnySky : MonoBehaviour
 
         mat.SetInt("ATMOSPHERE_SAMPLES", m_AtmosphereSamples);
         mat.SetFloat("ATMOSPHERE_RADIUS", m_AtmosphereRadius);
+        mat.SetFloat("iTime", Time.time);
         mat.SetFloat("SUN_INTENSITY", m_sunIntensity);
         mat.SetVector("EARTH_POS", m_ObservationPos);
         mat.SetVector("SUN_DIR", m_sun.transform.forward);
         mat.SetTexture("_Transmittance", m_transmittance);
         mat.SetTexture("_Irradiance", m_irradiance);
         mat.SetTexture("_Inscatter", m_inscatter);
+        mat.SetTexture("_PerlinNoise2D", m_perlinNoise2D);
 
     }
 
