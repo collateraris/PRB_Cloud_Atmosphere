@@ -36,18 +36,15 @@ Shader "Atmosphere/SunnySky"
 			{
 				float3 dir = normalize(IN.worldPos-_WorldSpaceCameraPos);
 			    
-			    float sun = step(cos(M_PI / 360.0 * 10), dot(dir, SUN_DIR));
+			    float sun = step(cos(M_PI / 360.0 ), dot(dir, SUN_DIR));
 			    
 			    float3 sunColor = float3(sun,sun,sun) * SUN_INTENSITY;
 
-				float sunDir = normalize(SUN_DIR);
-				sunColor += atmosphereRealTime(dir, normalize(SUN_DIR));
-				sunColor += atmosphereRealTime(dir, normalize(-SUN_DIR));
-
-				sunColor=sunColor/(1+sunColor);
-				sunColor = pow(sunColor, float3(1.0 / 2.2,1.0 / 2.2,1.0 / 2.2));
+				float3 extinction;
+				float3 inscatter = SkyRadiance(_WorldSpaceCameraPos, dir, extinction);
+				float3 col = sunColor * extinction + inscatter;
 		
-				return float4(sunColor, 1.0);
+				return float4(hdr(col), 1.0);
 			}
 			
 			ENDCG
