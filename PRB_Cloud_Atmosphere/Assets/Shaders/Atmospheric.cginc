@@ -75,7 +75,7 @@ float Get3DNoise(float3 pos)
 
 float getClouds(float3 p)
 {
-    p = float3(p.x, length(p + EARTH_POS) - GetPlanetRadius(), p.z);
+    p = float3(p.x, length(p) - GetPlanetRadius(), p.z);
     
     if (p.y < cloudMinHeight || p.y > cloudMaxHeight)
         return 0.0;
@@ -253,20 +253,15 @@ float3 calculateVolumetricClouds(in float3 dir)
     float bottomSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMinHeight).y;
     float topSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMaxHeight).y;
     
-    float3 startPos = dir * bottomSphere;
-    float3 endPos = dir * topSphere;
-
-    float3 delta = (endPos - startPos) / ATMOSPHERE_SAMPLES;
-    float3 cloudPos = startPos + dir * delta;
-
-    float i_delta  = length(delta);
+    float3 delta = abs(bottomSphere - topSphere) / ATMOSPHERE_SAMPLES;
+    float3 cloudPos = EARTH_POS + dir * bottomSphere;
 
     float3 cloudRes = float3(0., 0., 0.);
 
     for (int i = 0; i <= ATMOSPHERE_SAMPLES; i++)
     {
-        cloudRes += getClouds(cloudPos) * i_delta;
-        cloudPos += delta;
+        cloudRes += getClouds(cloudPos) * delta;
+        cloudPos += dir * delta; 
     }
 
     return cloudRes;
