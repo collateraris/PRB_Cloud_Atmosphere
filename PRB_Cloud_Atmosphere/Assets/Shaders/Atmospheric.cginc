@@ -43,7 +43,9 @@ float3 SUN_DIR;
 float SUN_INTENSITY;
 float iTime;
 
-sampler2D _Transmittance, _Irradiance, _PerlinNoise2D;
+sampler2D _Transmittance, _Irradiance;
+Texture2D _PerlinNoise2D;
+SamplerState sampler_PerlinNoise2D;
 sampler3D _Inscatter;
 
 float GetPlanetRadius()
@@ -67,8 +69,8 @@ float Get3DNoise(float3 pos)
     
     float2 coord = pos.xy * invNoiseRes + (p * zStretch);
     
-    float2 noise = float2(tex2D(_PerlinNoise2D, coord).x,
-					  tex2D(_PerlinNoise2D, coord + zStretch).x);
+    float2 noise = float2(_PerlinNoise2D.Sample(sampler_PerlinNoise2D, coord).x,
+					  _PerlinNoise2D.Sample(sampler_PerlinNoise2D, coord + zStretch).x);
     
     return lerp(noise.x, noise.y, f);
 }
@@ -253,12 +255,15 @@ float3 calculateVolumetricClouds(in float3 dir)
     float bottomSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMinHeight).y;
     float topSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMaxHeight).y;
     
-    float3 delta = abs(bottomSphere - topSphere) / ATMOSPHERE_SAMPLES;
+    const int steps = ATMOSPHERE_SAMPLES;
+    const float iSteps = 1.0 / float(steps);
+    
+    float3 delta = abs(bottomSphere - topSphere) * iSteps;
     float3 cloudPos = EARTH_POS + dir * bottomSphere;
 
     float3 cloudRes = float3(0., 0., 0.);
 
-    for (int i = 0; i <= ATMOSPHERE_SAMPLES; i++)
+    for (int i = 0; i < ATMOSPHERE_SAMPLES; i++)
     {
         cloudRes += getClouds(cloudPos) * delta;
         cloudPos += dir * delta; 
