@@ -250,7 +250,7 @@ float phaseFunRayScattering(float cosTheta)
     return 3 * M_PI / 16 * (1 + cosTheta * cosTheta);
 }
 
-float3 calculateVolumetricClouds(in float3 dir)
+float3 calculateVolumetricClouds(in float3 dir, in float3 skyColor)
 {
     float bottomSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMinHeight).y;
     float topSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMaxHeight).y;
@@ -263,13 +263,16 @@ float3 calculateVolumetricClouds(in float3 dir)
 
     float3 cloudRes = float3(0., 0., 0.);
 
+    float transmittance = 1.0;
+
     for (int i = 0; i < ATMOSPHERE_SAMPLES; i++)
     {
-        cloudRes += getClouds(cloudPos) * delta;
-        cloudPos += dir * delta; 
+        float3 opticalDepth = getClouds(cloudPos) * delta;
+        cloudPos += dir * delta;
+        transmittance *= exp2(-opticalDepth); 
     }
 
-    return cloudRes;
+    return skyColor * transmittance;
 }
 
 float3 atmosphereRealTime(in float3 dir, in float3 lightDir)
