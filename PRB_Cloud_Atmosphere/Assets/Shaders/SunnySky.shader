@@ -10,7 +10,7 @@ Shader "Atmosphere/SunnySky"
 			CGPROGRAM
 			#pragma enable_d3d11_debug_symbols
 			#include "UnityCG.cginc"
-			#pragma target 3.0
+			#pragma target 5.0
 			#pragma vertex vert
 			#pragma fragment frag
 			#include "Atmospheric.cginc"
@@ -44,8 +44,8 @@ Shader "Atmosphere/SunnySky"
 				float3 inscatter = SkyRadiance(_WorldSpaceCameraPos, dir, extinction);
 				float3 col = sunColor * extinction + inscatter;
 				float4 cloudCol = calculateVolumetricClouds(dir, col);
-		
-				return float4(hdr(cloudCol.xyz), cloudCol.w);
+
+				return float4(hdr(calculateVolumetricLight(dir, cloudCol.xyz)), cloudCol.w);
 			}
 			
 			ENDCG

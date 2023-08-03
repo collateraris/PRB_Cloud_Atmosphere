@@ -28,6 +28,8 @@
 #define cloudMaxHeight (cloudThickness + cloudMinHeight)
 #define cloudDensity 0.03
 
+#define fogDensity 0.00003
+
 int ATMOSPHERE_SAMPLES;
 float ATMOSPHERE_RADIUS;
 float3 EARTH_POS;
@@ -127,9 +129,6 @@ float getClouds(float3 p)
 
 float cloudSunDirectDensity(float3 pos)
 {
-    const int steps = ATMOSPHERE_SAMPLES;
-    const float iSteps = 1.0 / float(steps);
-
     float delta = abs(cloudMinHeight-cloudMaxHeight)*0.01;
     float3 sunPos = pos + SUN_DIR * delta;
 
@@ -157,6 +156,30 @@ float cloudSunDirectDensity(float3 pos)
 float3 getVolumetricCloudsScattering(float3 pos)
 {
     return exp(-cloudSunDirectDensity(pos)) * SUN_INTENSITY;
+}
+
+float getCloudShadow(float3 pos)
+{
+	const int steps = ATMOSPHERE_SAMPLES;
+    float rSteps = cloudThickness / float(steps) / abs(SUN_DIR.y);
+    
+    float3 increment = SUN_DIR * rSteps;
+    float3 position = SUN_DIR * (cloudMinHeight - pos.y) / SUN_DIR.y + pos;
+    
+    float transmittance = 0.0;
+    
+    [loop]
+    for (int i = 0; i < steps; i++, position += increment)
+    {
+		transmittance += getClouds(position);
+    }
+    
+    return exp2(-transmittance * rSteps);
+}
+
+float3 getVolumetricLightScattering(float3 pos)
+{
+    return getCloudShadow(pos) * SUN_INTENSITY;
 }
 
 
@@ -302,6 +325,13 @@ float phase2Lobes(float x)
     return lerp(lobe2, lobe1, m);
 }
 
+float getHeightFogOD(float height)
+{
+	const float falloff = 0.001;
+    
+    return exp2(-height * falloff) * fogDensity;
+}
+
 float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
 {
     float bottomSphere = raySphereIntersect(EARTH_POS, viewDir, GetPlanetRadius() + cloudMinHeight).y;
@@ -313,8 +343,6 @@ float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
     float delta = abs(bottomSphere - topSphere) * iSteps;
     float3 cloudPos = EARTH_POS + viewDir * bottomSphere;
 
-    float3 cloudRes = float3(0., 0., 0.);
-
     float3 scattering = float3(0., 0., 0.);
     float transmittance = 1.0;
 
@@ -325,19 +353,52 @@ float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
     for (int i = 0; i < ATMOSPHERE_SAMPLES; i++)
     {
         float opticalDepth = getClouds(cloudPos) * delta;
-        cloudPos += viewDir * delta;
-
         if (opticalDepth > 0.)
         {
             scattering += phase * opticalDepth * getVolumetricCloudsScattering(cloudPos) * transmittance;
-            transmittance *= exp(-opticalDepth); 
+            transmittance *= exp(-opticalDepth);
         }
+
+        cloudPos += viewDir * delta;
     }
 
     float blending=1.0-exp(-max(0.0, dot(viewDir, Y_DIR)));
     blending=blending*blending*blending;
 
     return float4(lerp(skyColor, skyColor * (1. - transmittance) + scattering, blending), 1. - transmittance);
+}
+
+
+float3 calculateVolumetricLight(in float3 viewDir, in float3 skyColor)
+{
+	const int steps = ATMOSPHERE_SAMPLES;
+    const float iSteps = 1.0 / float(steps);
+    
+    float3 increment = viewDir * cloudMinHeight / 0.1f  * iSteps;
+    float3 godRayPos = EARTH_POS  + increment;
+    
+    float stepLength = length(increment);
+    
+    float3 scattering = float3(0., 0., 0.);
+    float3 transmittance = float3(1., 1., 1.);
+    
+    float sunDirDotView = max(0, dot(SUN_DIR, viewDir));
+    float phase = phase2Lobes(sunDirDotView);
+
+    [loop]
+    for (int i = 0; i < ATMOSPHERE_SAMPLES; i++)
+    {
+        float opticalDepth = getHeightFogOD(godRayPos.y) * stepLength;
+        if (opticalDepth > 0.)
+        {
+            scattering += phase * opticalDepth * getVolumetricLightScattering(godRayPos) * transmittance;
+            transmittance *= exp(-opticalDepth);
+        }
+
+        godRayPos += increment;
+    }
+       
+    return skyColor * transmittance + scattering;
 }
 
 float3 atmosphereRealTime(in float3 dir, in float3 lightDir)
