@@ -40,57 +40,6 @@ Texture2D _PerlinNoise2D;
 SamplerState sampler_PerlinNoise2D;
 sampler3D _Inscatter;
 
-#define d0(x) (abs(x) + 1e-8)
-#define d02(x) (abs(x) + 1e-3)
-
-float3 scatter(float3 coeff, float cosTheta)
-{
-	return coeff * cosTheta;
-}
-
-float3 transmittance(float3 coeff, float cosTheta)
-{
-	return exp2(scatter(coeff, -cosTheta));
-}
-
-float calcParticleThickness(float depth)
-{
-   	
-    depth = depth * 2.0;
-    depth = max(depth + 0.01, 0.01);
-    depth = 1.0 / depth;
-    
-	return 100000.0 * depth;   
-}
-
-float calcParticleThicknessConst(const float depth)
-{
-    
-	return 100000.0 / max(depth * 2.0 - 0.01, 0.01);   
-}
-
-float powder(float od)
-{
-	return 1.0 - exp2(-od * 2.0);
-}
-
-float calculateScatterIntergral(float opticalDepth, float coeff)
-{
-    float a = -coeff * RLOG2;
-    float b = -1.0 / coeff;
-    float c =  1.0 / coeff;
-
-    return exp2(a * opticalDepth) * b + c;
-}
-
-float3 calculateScatterIntergral(float opticalDepth, float3 coeff)
-{
-    float3 a = -coeff * RLOG2;
-    float3 b = -1.0 / coeff;
-    float3 c =  1.0 / coeff;
-
-    return exp2(a * opticalDepth) * b + c;
-}
 
 float bayer2(float2 a)
 {
@@ -168,7 +117,7 @@ float getClouds(float3 p)
     const float bottom = 0.01;
     
     float horizonHeight = p.y - cloudMinHeight;
-    float treshHold = (1.0 - exp2(-bottom * horizonHeight)) * exp2(-top * horizonHeight);
+    float treshHold = (1.0 - exp(-bottom * horizonHeight)) * exp(-top * horizonHeight);
     
     float clouds = smoothstep(0.55, 0.6, noise);
           clouds *= treshHold;
@@ -176,66 +125,38 @@ float getClouds(float3 p)
     return clouds * cloudDensity;
 }
 
-float3 calcAtmosphericScatterTop()
-{
-    float sunDirDotY = dot(SUN_DIR, Y_DIR);
-
-    float opticalDepth = calcParticleThicknessConst(1.0);
-    float opticalDepthLight = calcParticleThickness(sunDirDotY);
-
-    float3 totalCoeff = BETA_MIE + BETA_RAY;
-
-    float3 scatterView = scatter(totalCoeff, opticalDepth);
-    float3 transmittanceView = transmittance(totalCoeff, opticalDepth);
-    
-    float3 scatterLight = scatter(totalCoeff, opticalDepthLight);
-    float3 transmittanceLight = transmittance(totalCoeff, opticalDepthLight);
-
-    float3 transmittanceSun = d02(transmittanceLight - transmittanceView) / d02((scatterLight - scatterView) * LOG2);
-
-    float3 mieScatter = scatter(BETA_MIE, opticalDepth) * 0.25;
-    float3 rayleighScatter = scatter(BETA_RAY, opticalDepth) * 0.375;
-
-    float3 scatterSun = mieScatter + rayleighScatter;
-    
-    return scatterSun * transmittanceSun * SUN_INTENSITY;
-}
-
-float getSunVisibility(float3 pos)
+float cloudSunDirectDensity(float3 pos)
 {
     const int steps = ATMOSPHERE_SAMPLES;
     const float iSteps = 1.0 / float(steps);
-    
-    float topSphere = raySphereIntersect(pos, SUN_DIR, ATMOSPHERE_RADIUS).y;
 
-    float delta = topSphere * iSteps;
+    float delta = abs(cloudMinHeight-cloudMaxHeight)*0.01;
     float3 sunPos = pos + SUN_DIR * delta;
 
-    float transmittance = 1.0;
+    float sumDensity=0.0;
 
     [loop]
-    for (int i = 0; i < ATMOSPHERE_SAMPLES; i++)
+    for (int i = 0; i < 4; i++)
     {
         float opticalDepth = getClouds(sunPos) * delta;
+
+        if(i==3)
+			delta *= 6;
+
         sunPos += SUN_DIR * delta;
 
         if (opticalDepth > 0.)
         {
-            transmittance *= exp2(-opticalDepth); 
+            sumDensity += opticalDepth; 
         }
     }
 
-    return transmittance;
+    return sumDensity;
 }
 
-float3 getVolumetricCloudsScattering(float opticalDepth, float phase, float3 pos, float3 skyLight)
+float3 getVolumetricCloudsScattering(float3 pos)
 {
-    float intergal = calculateScatterIntergral(opticalDepth, 1.11);
-
-	float3 sunlighting = getSunVisibility(pos) * phase * HALF_PI * SUN_INTENSITY;
-    float3 skylighting = skyLight * 0.25 * R_PI;
-    
-    return (sunlighting + skylighting) * intergal * M_PI;
+    return exp(-cloudSunDirectDensity(pos)) * SUN_INTENSITY;
 }
 
 
@@ -381,41 +302,42 @@ float phase2Lobes(float x)
     return lerp(lobe2, lobe1, m);
 }
 
-float3 calculateVolumetricClouds(in float3 dir, in float3 skyColor)
+float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
 {
-    float bottomSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMinHeight).y;
-    float topSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMaxHeight).y;
+    float bottomSphere = raySphereIntersect(EARTH_POS, viewDir, GetPlanetRadius() + cloudMinHeight).y;
+    float topSphere = raySphereIntersect(EARTH_POS, viewDir, GetPlanetRadius() + cloudMaxHeight).y;
     
     const int steps = ATMOSPHERE_SAMPLES;
     const float iSteps = 1.0 / float(steps);
     
     float delta = abs(bottomSphere - topSphere) * iSteps;
-    float3 cloudPos = EARTH_POS + dir * bottomSphere;
+    float3 cloudPos = EARTH_POS + viewDir * bottomSphere;
 
     float3 cloudRes = float3(0., 0., 0.);
 
     float3 scattering = float3(0., 0., 0.);
     float transmittance = 1.0;
 
-    float3 skyLight = calcAtmosphericScatterTop();
-
-    float sunDirDotView = dot(SUN_DIR, dir);
+    float sunDirDotView = max(0, dot(SUN_DIR, viewDir));
     float phase = phase2Lobes(sunDirDotView);
 
     [loop]
     for (int i = 0; i < ATMOSPHERE_SAMPLES; i++)
     {
         float opticalDepth = getClouds(cloudPos) * delta;
-        cloudPos += dir * delta;
+        cloudPos += viewDir * delta;
 
         if (opticalDepth > 0.)
         {
-            scattering += getVolumetricCloudsScattering(opticalDepth, phase, cloudPos, skyLight) * transmittance;
-            transmittance *= exp2(-opticalDepth); 
+            scattering += phase * opticalDepth * getVolumetricCloudsScattering(cloudPos) * transmittance;
+            transmittance *= exp(-opticalDepth); 
         }
     }
 
-    return skyColor * transmittance + scattering;
+    float blending=1.0-exp(-max(0.0, dot(viewDir, Y_DIR)));
+    blending=blending*blending*blending;
+
+    return float4(lerp(skyColor, skyColor * (1. - transmittance) + scattering, blending), 1. - transmittance);
 }
 
 float3 atmosphereRealTime(in float3 dir, in float3 lightDir)

@@ -43,9 +43,9 @@ Shader "Atmosphere/SunnySky"
 				float3 extinction;
 				float3 inscatter = SkyRadiance(_WorldSpaceCameraPos, dir, extinction);
 				float3 col = sunColor * extinction + inscatter;
-				col = calculateVolumetricClouds(dir, col);
+				float4 cloudCol = calculateVolumetricClouds(dir, col);
 		
-				return float4(hdr(col), 1.0);
+				return float4(hdr(cloudCol.xyz), cloudCol.w);
 			}
 			
 			ENDCG
