@@ -1,4 +1,9 @@
 #define M_PI 3.141592
+#define HALF_PI 1.570796
+#define R_PI 0.3183099
+
+#define LOG2 log(2.)
+#define RLOG2 1./log(2.)
 
 #define RAYLEIGH_HEIGHT   8e3
 #define MIE_HEIGHT        1.2e3
@@ -6,6 +11,7 @@
 
 #define BETA_RAY   float3(5.8e-6, 13.5e-6, 33.1e-6) // vec3(5.5e-6, 13.0e-6, 22.4e-6)
 #define BETA_MIE   float3(3e-6,3e-6,3e-6)
+#define Y_DIR   float3(0,1,0)
 
 #define Rg 6360000.0
 #define Rt 6420000.0
@@ -22,20 +28,6 @@
 #define cloudMaxHeight (cloudThickness + cloudMinHeight)
 #define cloudDensity 0.03
 
-
-float bayer2(float2 a){
-    a = floor(a);
-    return frac( dot(a, float2(.5, a.y * .75)) );
-}
-
-#define bayer4(a)   (bayer2( .5*(a))*.25+bayer2(a))
-#define bayer8(a)   (bayer4( .5*(a))*.25+bayer2(a))
-#define bayer16(a)  (bayer8( .5*(a))*.25+bayer2(a))
-#define bayer32(a)  (bayer16(.5*(a))*.25+bayer2(a))
-#define bayer64(a)  (bayer32(.5*(a))*.25+bayer2(a))
-#define bayer128(a) (bayer64(.5*(a))*.25+bayer2(a))
-
-
 int ATMOSPHERE_SAMPLES;
 float ATMOSPHERE_RADIUS;
 float3 EARTH_POS;
@@ -48,6 +40,72 @@ Texture2D _PerlinNoise2D;
 SamplerState sampler_PerlinNoise2D;
 sampler3D _Inscatter;
 
+#define d0(x) (abs(x) + 1e-8)
+#define d02(x) (abs(x) + 1e-3)
+
+float3 scatter(float3 coeff, float cosTheta)
+{
+	return coeff * cosTheta;
+}
+
+float3 transmittance(float3 coeff, float cosTheta)
+{
+	return exp2(scatter(coeff, -cosTheta));
+}
+
+float calcParticleThickness(float depth)
+{
+   	
+    depth = depth * 2.0;
+    depth = max(depth + 0.01, 0.01);
+    depth = 1.0 / depth;
+    
+	return 100000.0 * depth;   
+}
+
+float calcParticleThicknessConst(const float depth)
+{
+    
+	return 100000.0 / max(depth * 2.0 - 0.01, 0.01);   
+}
+
+float powder(float od)
+{
+	return 1.0 - exp2(-od * 2.0);
+}
+
+float calculateScatterIntergral(float opticalDepth, float coeff)
+{
+    float a = -coeff * RLOG2;
+    float b = -1.0 / coeff;
+    float c =  1.0 / coeff;
+
+    return exp2(a * opticalDepth) * b + c;
+}
+
+float3 calculateScatterIntergral(float opticalDepth, float3 coeff)
+{
+    float3 a = -coeff * RLOG2;
+    float3 b = -1.0 / coeff;
+    float3 c =  1.0 / coeff;
+
+    return exp2(a * opticalDepth) * b + c;
+}
+
+float bayer2(float2 a)
+{
+    a = floor(a);
+    return frac( dot(a, float2(.5, a.y * .75)) );
+}
+
+#define bayer4(a)   (bayer2( .5*(a))*.25+bayer2(a))
+#define bayer8(a)   (bayer4( .5*(a))*.25+bayer2(a))
+#define bayer16(a)  (bayer8( .5*(a))*.25+bayer2(a))
+#define bayer32(a)  (bayer16(.5*(a))*.25+bayer2(a))
+#define bayer64(a)  (bayer32(.5*(a))*.25+bayer2(a))
+#define bayer128(a) (bayer64(.5*(a))*.25+bayer2(a))
+
+
 float GetPlanetRadius()
 {
     return EARTH_POS.y;
@@ -56,6 +114,20 @@ float GetPlanetRadius()
 float GetAtmosphereHeight()
 {
     return ATMOSPHERE_RADIUS - GetPlanetRadius();
+}
+
+float2 raySphereIntersect(in float3 origin, in float3 dir, in float radius) {
+	float a = dot(dir, dir);
+	float b = 2.0 * dot(dir, origin);
+	float c = dot(origin, origin) - (radius * radius);
+	float d = (b * b) - 4.0 * a * c;
+    
+	if(d < 0.0)return float2(1.0, -1.0);
+	float2 res =  float2(
+		(-b - sqrt(d)) / (2.0 * a),
+		(-b + sqrt(d)) / (2.0 * a)
+	);
+    return res;
 }
 
 float Get3DNoise(float3 pos) 
@@ -102,6 +174,68 @@ float getClouds(float3 p)
           clouds *= treshHold;
     
     return clouds * cloudDensity;
+}
+
+float3 calcAtmosphericScatterTop()
+{
+    float sunDirDotY = dot(SUN_DIR, Y_DIR);
+
+    float opticalDepth = calcParticleThicknessConst(1.0);
+    float opticalDepthLight = calcParticleThickness(sunDirDotY);
+
+    float3 totalCoeff = BETA_MIE + BETA_RAY;
+
+    float3 scatterView = scatter(totalCoeff, opticalDepth);
+    float3 transmittanceView = transmittance(totalCoeff, opticalDepth);
+    
+    float3 scatterLight = scatter(totalCoeff, opticalDepthLight);
+    float3 transmittanceLight = transmittance(totalCoeff, opticalDepthLight);
+
+    float3 transmittanceSun = d02(transmittanceLight - transmittanceView) / d02((scatterLight - scatterView) * LOG2);
+
+    float3 mieScatter = scatter(BETA_MIE, opticalDepth) * 0.25;
+    float3 rayleighScatter = scatter(BETA_RAY, opticalDepth) * 0.375;
+
+    float3 scatterSun = mieScatter + rayleighScatter;
+    
+    return scatterSun * transmittanceSun * SUN_INTENSITY;
+}
+
+float getSunVisibility(float3 pos)
+{
+    const int steps = ATMOSPHERE_SAMPLES;
+    const float iSteps = 1.0 / float(steps);
+    
+    float topSphere = raySphereIntersect(pos, SUN_DIR, ATMOSPHERE_RADIUS).y;
+
+    float delta = topSphere * iSteps;
+    float3 sunPos = pos + SUN_DIR * delta;
+
+    float transmittance = 1.0;
+
+    [loop]
+    for (int i = 0; i < ATMOSPHERE_SAMPLES; i++)
+    {
+        float opticalDepth = getClouds(sunPos) * delta;
+        sunPos += SUN_DIR * delta;
+
+        if (opticalDepth > 0.)
+        {
+            transmittance *= exp2(-opticalDepth); 
+        }
+    }
+
+    return transmittance;
+}
+
+float3 getVolumetricCloudsScattering(float opticalDepth, float phase, float3 pos, float3 skyLight)
+{
+    float intergal = calculateScatterIntergral(opticalDepth, 1.11);
+
+	float3 sunlighting = getSunVisibility(pos) * phase * HALF_PI * SUN_INTENSITY;
+    float3 skylighting = skyLight * 0.25 * R_PI;
+    
+    return (sunlighting + skylighting) * intergal * M_PI;
 }
 
 
@@ -216,20 +350,6 @@ float3 SkyRadiance(float3 camera, float3 viewdir, out float3 extinction)
 }
 
 
-float2 raySphereIntersect(in float3 origin, in float3 dir, in float radius) {
-	float a = dot(dir, dir);
-	float b = 2.0 * dot(dir, origin);
-	float c = dot(origin, origin) - (radius * radius);
-	float d = (b * b) - 4.0 * a * c;
-    
-	if(d < 0.0)return float2(1.0, -1.0);
-	float2 res =  float2(
-		(-b - sqrt(d)) / (2.0 * a),
-		(-b + sqrt(d)) / (2.0 * a)
-	);
-    return res;
-}
-
 float phaseFunMieScattering(float cosTheta, in float g)
 {
     float gg = g * g;
@@ -250,6 +370,17 @@ float phaseFunRayScattering(float cosTheta)
     return 3 * M_PI / 16 * (1 + cosTheta * cosTheta);
 }
 
+float phase2Lobes(float x)
+{
+    const float m = 0.6;
+    const float gm = 0.8;
+    
+	float lobe1 = phaseFunMieScattering(x, 0.8 * gm);
+    float lobe2 = phaseFunMieScattering(x, -0.5 * gm);
+    
+    return lerp(lobe2, lobe1, m);
+}
+
 float3 calculateVolumetricClouds(in float3 dir, in float3 skyColor)
 {
     float bottomSphere = raySphereIntersect(EARTH_POS, dir, GetPlanetRadius() + cloudMinHeight).y;
@@ -258,21 +389,33 @@ float3 calculateVolumetricClouds(in float3 dir, in float3 skyColor)
     const int steps = ATMOSPHERE_SAMPLES;
     const float iSteps = 1.0 / float(steps);
     
-    float3 delta = abs(bottomSphere - topSphere) * iSteps;
+    float delta = abs(bottomSphere - topSphere) * iSteps;
     float3 cloudPos = EARTH_POS + dir * bottomSphere;
 
     float3 cloudRes = float3(0., 0., 0.);
 
+    float3 scattering = float3(0., 0., 0.);
     float transmittance = 1.0;
 
+    float3 skyLight = calcAtmosphericScatterTop();
+
+    float sunDirDotView = dot(SUN_DIR, dir);
+    float phase = phase2Lobes(sunDirDotView);
+
+    [loop]
     for (int i = 0; i < ATMOSPHERE_SAMPLES; i++)
     {
-        float3 opticalDepth = getClouds(cloudPos) * delta;
+        float opticalDepth = getClouds(cloudPos) * delta;
         cloudPos += dir * delta;
-        transmittance *= exp2(-opticalDepth); 
+
+        if (opticalDepth > 0.)
+        {
+            scattering += getVolumetricCloudsScattering(opticalDepth, phase, cloudPos, skyLight) * transmittance;
+            transmittance *= exp2(-opticalDepth); 
+        }
     }
 
-    return skyColor * transmittance;
+    return skyColor * transmittance + scattering;
 }
 
 float3 atmosphereRealTime(in float3 dir, in float3 lightDir)
@@ -289,6 +432,7 @@ float3 atmosphereRealTime(in float3 dir, in float3 lightDir)
 
     float2 opticalDepth = float2(0, 0);
 
+    [loop]
     for (int i = 0; i <= ATMOSPHERE_SAMPLES; i++)
     {
         float3 samplePos = EARTH_POS + dir * rayOffset;

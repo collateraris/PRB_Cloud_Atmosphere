@@ -22,7 +22,7 @@ public class SunnySky : MonoBehaviour
     const int INSCATTER_CHANNELS = 4;
 
     public Material m_sunnySkyMaterial;
-    public float m_sunIntensity = 100.0f;
+    public float m_sunIntensity = 3.0f;
     public int m_AtmosphereSamples = 32;
     public float m_AtmosphereRadius = 6471000;
     public Vector3 m_ObservationPos = new Vector3(0.0f, 6371000.0f, 0.0f);
