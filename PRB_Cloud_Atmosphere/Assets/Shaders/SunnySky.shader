@@ -45,7 +45,7 @@ Shader "Atmosphere/SunnySky"
 				float3 col = sunColor * extinction + inscatter;
 				float4 cloudCol = calculateVolumetricClouds(dir, col);
 
-				return float4(hdr(calculateVolumetricLight(dir, cloudCol.xyz)), cloudCol.w);
+				return float4(hdr(cloudCol.xyz), cloudCol.w);
 			}
 			
 			ENDCG
