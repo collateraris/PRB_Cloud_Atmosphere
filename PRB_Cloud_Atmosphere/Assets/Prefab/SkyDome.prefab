@@ -104,3 +104,6 @@ MonoBehaviour:
   m_sun: {fileID: 0}
   m_filePath: /Textures
   m_perlinNoise2D: {fileID: 2800000, guid: 6422e8dc69489c84e8ee32ee7f0ffea3, type: 3}
+  m_cloudBaseTexture: {fileID: 0}
+  m_cloudDetailTexture: {fileID: 0}
+  m_weatherMapTexture: {fileID: 2800000, guid: 26e445c7cfed6714a95c49223bdaa424, type: 3}

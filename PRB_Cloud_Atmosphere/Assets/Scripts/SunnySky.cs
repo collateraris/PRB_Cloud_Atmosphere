@@ -38,6 +38,7 @@ public class SunnySky : MonoBehaviour
 
     public Texture3D m_cloudBaseTexture;
     public Texture3D m_cloudDetailTexture;
+    public Texture2D m_weatherMapTexture;
 
     // Start is called before the first frame update
     private void Start()
@@ -98,7 +99,7 @@ public class SunnySky : MonoBehaviour
         mat.SetTexture("_PerlinNoise2D", m_perlinNoise2D);
         mat.SetTexture("_NoiseTex", m_cloudBaseTexture);
         mat.SetTexture("_CloudDetailTexture", m_cloudDetailTexture);
-
+        mat.SetTexture("_WeatherMapTex", m_weatherMapTexture);
     }
 
     private float[] LoadRawFile(string path, int size)

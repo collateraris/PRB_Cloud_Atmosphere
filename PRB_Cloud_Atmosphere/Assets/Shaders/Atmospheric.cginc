@@ -38,6 +38,7 @@ float SUN_INTENSITY;
 float iTime;
 
 sampler2D _Transmittance, _Irradiance;
+sampler2D _WeatherMapTex;
 Texture2D _PerlinNoise2D;
 SamplerState sampler_PerlinNoise2D;
 sampler3D _Inscatter;
@@ -100,22 +101,34 @@ float Get3DNoise(float3 pos)
     return lerp(noise.x, noise.y, f);
 }
 
-float remap(float value, float minValue, float maxValue, float newMinValue, float newMaxValue)
+float remap(float original_value, float original_min, float original_max, float new_min, float new_max)
 {
-    return newMinValue+(value-minValue)/(maxValue-minValue)*(newMaxValue-newMinValue);
+    if(abs(original_max - original_min)<10e-5) return new_min;
+    return new_min + (((original_value - original_min) / (original_max - original_min)) * (new_max - new_min));
+}
+
+float cloudGetHeight(float3 position)
+{
+    float heightFraction = (position.y - cloudMinHeight) / (cloudMaxHeight - cloudMinHeight);
+
+	return saturate(heightFraction);
 }
 
 float cloudSampleDensity(float3 position)
 {
-    position.xz += float2(0.2, 0.2) * iTime;
-
+    position.xz += 100 * iTime;
     float scale = 5. * 1e-5;
     float4 low_frequency_noises = tex3Dlod(_NoiseTex , float4 ( position * scale , 0 ));
     float low_freq_fBm = ( low_frequency_noises.g * 0.625 ) + ( low_frequency_noises.b * 0.25 ) + ( low_frequency_noises.a * 0.125 );
     float base_cloud = remap(low_frequency_noises.r, -(1.0 - low_freq_fBm), 1.0, 0.0, 1.0);
-	return base_cloud;
-    //float cloudDetailTexSample = tex3Dlod(_CloudDetailTexture , float4 ( position / 4800. , 0 )).x * 1;
-    //float SNsample = noiseTexSample + cloudDetailTexSample;
+
+    float3 high_frequency_noises = tex3Dlod(_CloudDetailTexture , float4 ( position * scale , 0 )).rgb;
+	float high_freq_fBm = ( high_frequency_noises.r * 0.625 ) + ( high_frequency_noises.g * 0.25 ) + ( high_frequency_noises.b * 0.125 );
+	
+    float SNsample = base_cloud * 0.85 + high_freq_fBm * 0.15;
+				
+    float base_cloud_with_coverage = remap(base_cloud, 0.4, 1.0, 0.0, 1.0);
+    return base_cloud_with_coverage;
 }
 
 float getClouds(float3 p)
@@ -384,8 +397,7 @@ float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
 
     float blending=1.0-exp(-max(0.0, dot(viewDir, Y_DIR)));
     blending=blending*blending*blending;
-
-    return float4(lerp(skyColor, skyColor * (1. - transmittance) + scattering, blending), 1. - transmittance);
+    return float4(lerp(skyColor, skyColor * transmittance + scattering, blending), 1. - transmittance);
 }
 
 
