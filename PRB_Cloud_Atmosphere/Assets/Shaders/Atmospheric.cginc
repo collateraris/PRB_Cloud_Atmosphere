@@ -100,6 +100,17 @@ float Get3DNoise(float3 pos)
     return lerp(noise.x, noise.y, f);
 }
 
+float cloudSampleDensity(float3 position)
+{
+    position.xz += float2(0.2, 0.2) * iTime;
+
+    float noiseTexSample = tex3Dlod(_NoiseTex , float4 ( position / 4800. , 0 )).x * 0.85;
+    float cloudDetailTexSample = tex3Dlod(_CloudDetailTexture , float4 ( position / 480. , 0 )).x * 0.15;
+    float SNsample = noiseTexSample + cloudDetailTexSample;
+
+    return SNsample;
+}
+
 float getClouds(float3 p)
 {
     p = float3(p.x, length(p) - GetPlanetRadius(), p.z);
@@ -139,7 +150,7 @@ float cloudSunDirectDensity(float3 pos)
     [loop]
     for (int i = 0; i < 4; i++)
     {
-        float opticalDepth = getClouds(sunPos) * delta;
+        float opticalDepth = cloudSampleDensity(sunPos) * delta;
 
         if(i==3)
 			delta *= 6;
@@ -173,7 +184,7 @@ float getCloudShadow(float3 pos)
     [loop]
     for (int i = 0; i < steps; i++, position += increment)
     {
-		transmittance += getClouds(position);
+		transmittance += cloudSampleDensity(position);
     }
     
     return exp2(-transmittance * rSteps);
@@ -354,7 +365,7 @@ float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
     [loop]
     for (int i = 0; i < ATMOSPHERE_SAMPLES; i++)
     {
-        float opticalDepth = getClouds(cloudPos) * delta;
+        float opticalDepth = cloudSampleDensity(cloudPos) * delta;
         if (opticalDepth > 0.)
         {
             scattering += phase * opticalDepth * getVolumetricCloudsScattering(cloudPos) * transmittance;
