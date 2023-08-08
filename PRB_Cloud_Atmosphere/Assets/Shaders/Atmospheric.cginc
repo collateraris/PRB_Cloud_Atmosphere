@@ -37,6 +37,9 @@ float3 SUN_DIR;
 float SUN_INTENSITY;
 float iTime;
 
+float _CoverageScale;
+float _SunAttenuation;
+
 sampler2D _Transmittance, _Irradiance;
 sampler2D _WeatherMapTex;
 Texture2D _PerlinNoise2D;
@@ -108,7 +111,7 @@ float remap(float original_value, float original_min, float original_max, float 
 }
 
 float cloudGetHeight(float3 position)
-{
+{   
     float heightFraction = (position.y - cloudMinHeight) / (cloudMaxHeight - cloudMinHeight);
 
 	return saturate(heightFraction);
@@ -116,8 +119,9 @@ float cloudGetHeight(float3 position)
 
 float cloudSampleDensity(float3 position)
 {
+    position.y = position.y - GetPlanetRadius();
     position.xz += 100 * iTime;
-    float scale = 5. * 1e-5;
+    float scale = 5 * 1e-5;
     float4 low_frequency_noises = tex3Dlod(_NoiseTex , float4 ( position * scale , 0 ));
     float low_freq_fBm = ( low_frequency_noises.g * 0.625 ) + ( low_frequency_noises.b * 0.25 ) + ( low_frequency_noises.a * 0.125 );
     float base_cloud = remap(low_frequency_noises.r, -(1.0 - low_freq_fBm), 1.0, 0.0, 1.0);
@@ -126,9 +130,24 @@ float cloudSampleDensity(float3 position)
 	float high_freq_fBm = ( high_frequency_noises.r * 0.625 ) + ( high_frequency_noises.g * 0.25 ) + ( high_frequency_noises.b * 0.125 );
 	
     float SNsample = base_cloud * 0.85 + high_freq_fBm * 0.15;
+
+    float height = cloudGetHeight(position);
+    
+    float2 weather_uv = position.xz * 1e-5;
+    weather_uv += 0.8;
+    float4 weather = tex2Dlod(_WeatherMapTex, float4(weather_uv, 0, 0));
+    float cloud_coverage = weather.r;
+    cloud_coverage = pow(cloud_coverage, remap(height, 0.7, 0.8, 1.0, lerp(1.0, 0.5, 0.3)));
 				
-    float base_cloud_with_coverage = remap(base_cloud, 0.4, 1.0, 0.0, 1.0);
-    return base_cloud_with_coverage;
+    float base_cloud_with_coverage = remap(base_cloud, saturate(cloud_coverage * _CoverageScale), 1.0, 0.0, 1.0);
+    base_cloud_with_coverage *= cloud_coverage;
+
+    float final_cloud = base_cloud_with_coverage;
+    float high_freq_noise_modifier = lerp(high_freq_fBm, 1.0 - high_freq_fBm, saturate(height * 10.0));
+
+    final_cloud = remap(base_cloud_with_coverage, high_freq_noise_modifier * 0.2 , 1.0, 0.0, 1.0);
+
+    return saturate(final_cloud);
 }
 
 float getClouds(float3 p)
@@ -176,11 +195,10 @@ float cloudSunDirectDensity(float3 pos)
 			delta *= 6;
 
         sunPos += SUN_DIR * delta;
-
         if (opticalDepth > 0.)
         {
-            sumDensity += opticalDepth; 
-        }
+            sumDensity += opticalDepth;
+        } 
     }
 
     return sumDensity;
@@ -188,7 +206,7 @@ float cloudSunDirectDensity(float3 pos)
 
 float3 getVolumetricCloudsScattering(float3 pos)
 {
-    return exp(-cloudSunDirectDensity(pos)) * SUN_INTENSITY;
+    return exp(-cloudSunDirectDensity(pos) * _SunAttenuation) * SUN_INTENSITY;
 }
 
 float getCloudShadow(float3 pos)
@@ -349,7 +367,7 @@ float phaseFunRayScattering(float cosTheta)
 
 float phase2Lobes(float x)
 {
-    const float m = 0.6;
+    const float m = 0.5;
     const float gm = 0.8;
     
 	float lobe1 = phaseFunMieScattering(x, 0.8 * gm);
@@ -379,7 +397,7 @@ float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
     float3 scattering = float3(0., 0., 0.);
     float transmittance = 1.0;
 
-    float sunDirDotView = max(0, dot(SUN_DIR, viewDir));
+    float sunDirDotView = max(0, dot(viewDir, SUN_DIR));
     float phase = phase2Lobes(sunDirDotView);
 
     [loop]
