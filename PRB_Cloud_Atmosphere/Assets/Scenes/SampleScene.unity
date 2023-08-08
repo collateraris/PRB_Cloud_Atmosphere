@@ -367,6 +367,14 @@ PrefabInstance:
       propertyPath: m_sun
       value: 
       objectReference: {fileID: 705507993}
+    - target: {fileID: 4436490694552266624, guid: c3ab4126d3fcfc649badcff9fa5330ef, type: 3}
+      propertyPath: m_cloudBaseTexture
+      value: 
+      objectReference: {fileID: 117427076822374612, guid: a2833fc65dab6294f9a96f6eb2d7e3d3, type: 2}
+    - target: {fileID: 4436490694552266624, guid: c3ab4126d3fcfc649badcff9fa5330ef, type: 3}
+      propertyPath: m_cloudDetailTexture
+      value: 
+      objectReference: {fileID: 117666681988382002, guid: 0ef3e588a73734d4c84b350746cebb4e, type: 2}
     - target: {fileID: 4547743632587049160, guid: c3ab4126d3fcfc649badcff9fa5330ef, type: 3}
       propertyPath: m_Name
       value: SkyDome

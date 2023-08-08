@@ -41,6 +41,8 @@ sampler2D _Transmittance, _Irradiance;
 Texture2D _PerlinNoise2D;
 SamplerState sampler_PerlinNoise2D;
 sampler3D _Inscatter;
+sampler3D _NoiseTex;
+sampler3D _CloudDetailTexture;
 
 
 float bayer2(float2 a)

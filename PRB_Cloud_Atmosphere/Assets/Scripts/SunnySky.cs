@@ -36,6 +36,9 @@ public class SunnySky : MonoBehaviour
 
     public Texture2D m_perlinNoise2D;
 
+    public Texture3D m_cloudBaseTexture;
+    public Texture3D m_cloudDetailTexture;
+
     // Start is called before the first frame update
     private void Start()
         {
@@ -93,6 +96,8 @@ public class SunnySky : MonoBehaviour
         mat.SetTexture("_Irradiance", m_irradiance);
         mat.SetTexture("_Inscatter", m_inscatter);
         mat.SetTexture("_PerlinNoise2D", m_perlinNoise2D);
+        mat.SetTexture("_NoiseTex", m_cloudBaseTexture);
+        mat.SetTexture("_CloudDetailTexture", m_cloudDetailTexture);
 
     }
 
