@@ -100,15 +100,22 @@ float Get3DNoise(float3 pos)
     return lerp(noise.x, noise.y, f);
 }
 
+float remap(float value, float minValue, float maxValue, float newMinValue, float newMaxValue)
+{
+    return newMinValue+(value-minValue)/(maxValue-minValue)*(newMaxValue-newMinValue);
+}
+
 float cloudSampleDensity(float3 position)
 {
     position.xz += float2(0.2, 0.2) * iTime;
 
-    float noiseTexSample = tex3Dlod(_NoiseTex , float4 ( position / 4800. , 0 )).x * 0.85;
-    float cloudDetailTexSample = tex3Dlod(_CloudDetailTexture , float4 ( position / 480. , 0 )).x * 0.15;
-    float SNsample = noiseTexSample + cloudDetailTexSample;
-
-    return SNsample;
+    float scale = 5. * 1e-5;
+    float4 low_frequency_noises = tex3Dlod(_NoiseTex , float4 ( position * scale , 0 ));
+    float low_freq_fBm = ( low_frequency_noises.g * 0.625 ) + ( low_frequency_noises.b * 0.25 ) + ( low_frequency_noises.a * 0.125 );
+    float base_cloud = remap(low_frequency_noises.r, -(1.0 - low_freq_fBm), 1.0, 0.0, 1.0);
+	return base_cloud;
+    //float cloudDetailTexSample = tex3Dlod(_CloudDetailTexture , float4 ( position / 4800. , 0 )).x * 1;
+    //float SNsample = noiseTexSample + cloudDetailTexSample;
 }
 
 float getClouds(float3 p)
