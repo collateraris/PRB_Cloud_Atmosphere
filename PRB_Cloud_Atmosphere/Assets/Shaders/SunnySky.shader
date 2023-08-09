@@ -44,7 +44,7 @@ Shader "Atmosphere/SunnySky"
 				float3 inscatter = SkyRadiance(_WorldSpaceCameraPos, dir, extinction);
 				float3 col = sunColor * extinction + inscatter;
 
-				return float4(hdr(col.xyz), 1);
+				return float4(col.xyz, 1);
 			}
 			
 			ENDCG
