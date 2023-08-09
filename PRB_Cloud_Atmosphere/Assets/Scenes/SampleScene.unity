@@ -369,6 +369,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_cloudsMaterial: {fileID: 2100000, guid: e69f9cf62db2681449c2d6eb0fa7f37a, type: 2}
+  m_sunIntensity: 3
+  m_AtmosphereSamples: 32
+  m_AtmosphereRadius: 6471000
+  m_ObservationPos: {x: 0, y: 6371000, z: 0}
+  m_sun: {fileID: 705507993}
+  m_cloudBaseTexture: {fileID: 117427076822374612, guid: a2833fc65dab6294f9a96f6eb2d7e3d3, type: 2}
+  m_cloudDetailTexture: {fileID: 117666681988382002, guid: 0ef3e588a73734d4c84b350746cebb4e, type: 2}
+  m_weatherMapTexture: {fileID: 2800000, guid: 26e445c7cfed6714a95c49223bdaa424, type: 3}
+  coverageScale: 1.2
+  sunAttenuation: 1
 --- !u!1001 &2105593203
 PrefabInstance:
   m_ObjectHideFlags: 0

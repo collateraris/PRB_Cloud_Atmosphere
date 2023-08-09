@@ -182,7 +182,8 @@ float getClouds(float3 p)
 float cloudSunDirectDensity(float3 pos)
 {
     float delta = abs(cloudMinHeight-cloudMaxHeight)*0.01;
-    float3 sunPos = pos + SUN_DIR * delta;
+    float3 lightDir = _WorldSpaceLightPos0.xyz;
+    float3 sunPos = pos + lightDir * delta;
 
     float sumDensity=0.0;
 
@@ -194,7 +195,7 @@ float cloudSunDirectDensity(float3 pos)
         if(i==3)
 			delta *= 6;
 
-        sunPos += SUN_DIR * delta;
+        sunPos += lightDir * delta;
         if (opticalDepth > 0.)
         {
             sumDensity += opticalDepth;
@@ -392,12 +393,14 @@ float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
     const float iSteps = 1.0 / float(steps);
     
     float delta = abs(bottomSphere - topSphere) * iSteps;
-    float3 cloudPos = EARTH_POS + viewDir * bottomSphere;
+    float3 startPosition = EARTH_POS + viewDir * bottomSphere;
+    float3 cloudPos = startPosition;
 
     float3 scattering = float3(0., 0., 0.);
     float transmittance = 1.0;
 
-    float sunDirDotView = max(0, dot(viewDir, SUN_DIR));
+    float3 lightDir = _WorldSpaceLightPos0.xyz;
+    float sunDirDotView = max(0, dot(viewDir, lightDir));
     float phase = phase2Lobes(sunDirDotView);
 
     [loop]
@@ -413,9 +416,8 @@ float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
         cloudPos += viewDir * delta;
     }
 
-    float blending=1.0-exp(-max(0.0, dot(viewDir, Y_DIR)));
-    blending=blending*blending*blending;
-    return float4(lerp(skyColor, skyColor * transmittance + scattering, blending), 1. - transmittance);
+    float blending=saturate(length(startPosition) * 0.00001);
+    return float4(lerp(skyColor, skyColor * transmittance + scattering, blending), 1);
 }
 
 
