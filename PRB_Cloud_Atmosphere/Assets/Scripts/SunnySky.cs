@@ -46,14 +46,14 @@ public class SunnySky : MonoBehaviour
     [SerializeField, Range(0,2)]
     private float sunAttenuation = 1.0f;
 
-    void OnGUI()
-	{
-		GUI.Label (new Rect(10,10,100,30), "Cloud Coverage");
-		coverageScale = GUI.HorizontalSlider (new Rect (10, 30, 100, 30), coverageScale, 0,2);
+    // void OnGUI()
+	// {
+	// 	GUI.Label (new Rect(10,10,100,30), "Cloud Coverage");
+	// 	coverageScale = GUI.HorizontalSlider (new Rect (10, 30, 100, 30), coverageScale, 0,2);
 
-        GUI.Label (new Rect(10,40,100,30), "Sun Attenuation");
-		sunAttenuation = GUI.HorizontalSlider (new Rect (10, 60, 100, 30), sunAttenuation, 0,2);
-	}
+    //     GUI.Label (new Rect(10,40,100,30), "Sun Attenuation");
+	// 	sunAttenuation = GUI.HorizontalSlider (new Rect (10, 60, 100, 30), sunAttenuation, 0,2);
+	// }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
