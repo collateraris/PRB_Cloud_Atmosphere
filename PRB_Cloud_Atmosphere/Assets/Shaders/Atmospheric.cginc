@@ -204,19 +204,29 @@ float Powder(float opticalDepth)
 
 float cloudSunDirectDensity(float3 pos)
 {
-    float delta = abs(cloudMinHeight-cloudMaxHeight)*0.01;
+    const float3 RandomUnitSphere[6] = 
+    {
+        {0.3f, -0.8f, -0.5f},
+        {0.9f, -0.3f, -0.2f},
+        {-0.9f, -0.3f, -0.1f},
+        {-0.5f, 0.5f, 0.7f},
+        {-1.0f, 0.3f, 0.0f},
+        {-0.3f, 0.9f, 0.4f}
+    };
+
+    int steps = 6;
+    float delta = abs(cloudMinHeight-cloudMaxHeight) / steps;
     float3 lightDir = _WorldSpaceLightPos0.xyz;
-    float3 sunPos = pos + lightDir * delta;
+    float3 sunPos = pos;
 
     float sumDensity=0.0;
 
     [loop]
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < steps; i++)
     {
-        float opticalDepth = cloudSampleDensity(sunPos) * delta;
-
-        if(i==3)
-			delta *= 6;
+		float3 random_sample = RandomUnitSphere[i] * delta * lightDir * (i + 1);
+		float3 sample_pos = sunPos + random_sample;        
+        float opticalDepth = cloudSampleDensity(sample_pos) * delta;
 
         sunPos += lightDir * delta;
         if (opticalDepth > 0.)
@@ -232,7 +242,7 @@ float3 getVolumetricCloudsScattering(float3 pos)
 {
     float densitySum = cloudSunDirectDensity(pos);
     float lightEnergy1 = BeerLambert(densitySum);
-    float lightEnergy2 = BeerLambert(densitySum*0.33)*0.65;
+    float lightEnergy2 = BeerLambert(densitySum*0.25)*0.7;
     float lightEnergy = max(lightEnergy1,lightEnergy2);
     float powder = Powder(densitySum);
 
