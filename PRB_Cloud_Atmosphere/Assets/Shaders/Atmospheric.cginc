@@ -412,6 +412,9 @@ float getHeightFogOD(float height)
 
 float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
 {   
+    if (viewDir.y < 0)
+        return float4(skyColor, 1);
+
     const int steps = 128;
     const float iSteps = 1.0 / float(steps);
 
