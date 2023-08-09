@@ -10,7 +10,7 @@ public class Clouds : MonoBehaviour
 
     private Camera m_camera;
 
-    public float m_sunIntensity = 3.0f;
+    public float m_sunIntensity = 2.0f;
     public int m_AtmosphereSamples = 32;
     public float m_AtmosphereRadius = 6471000;
     public Vector3 m_ObservationPos = new Vector3(0.0f, 6371000.0f, 0.0f);
@@ -26,6 +26,23 @@ public class Clouds : MonoBehaviour
 
     [SerializeField, Range(0, 2)]
     private float sunAttenuation = 1.0f;
+
+    [SerializeField]
+    private float AbsportionCoEff = 0;
+    [SerializeField, Range(0.01f, 1f)]
+    private float ScatteringCoEff = 0.104f;
+    [SerializeField, Range(0f, 1f)]
+    private float PowderCoEff = 0.132f;
+    [SerializeField, Range(0f, 1f)]
+    private float PowderScale = 0.718f;
+
+    [SerializeField, Range(0.01f, 0.9f)]
+    private float _hg = 0.6f;
+
+    [SerializeField, Range(0.01f, 5f)]
+    private float _silverIntensity = 1.49f;
+    [SerializeField, Range(0.01f, 1f)]
+    private float _silverSpread = 0.82f;
 
     void OnGUI()
     {
@@ -63,6 +80,13 @@ public class Clouds : MonoBehaviour
 
         m_cloudsMaterial.SetFloat("_CoverageScale", coverageScale);
         m_cloudsMaterial.SetFloat("_SunAttenuation", sunAttenuation);
+        m_cloudsMaterial.SetFloat("_AbsportionCoEff", AbsportionCoEff);
+        m_cloudsMaterial.SetFloat("_ScatteringCoEff", ScatteringCoEff);
+        m_cloudsMaterial.SetFloat("_PowderCoEff", PowderCoEff);
+        m_cloudsMaterial.SetFloat("_PowderScale", PowderScale); 
+        m_cloudsMaterial.SetFloat("_HG", _hg);
+        m_cloudsMaterial.SetFloat("_SilverIntensity", _silverIntensity);
+        m_cloudsMaterial.SetFloat("_SilverSpread", _silverSpread);
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)

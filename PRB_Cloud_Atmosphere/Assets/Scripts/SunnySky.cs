@@ -22,7 +22,7 @@ public class SunnySky : MonoBehaviour
     const int INSCATTER_CHANNELS = 4;
 
     public Material m_sunnySkyMaterial;
-    public float m_sunIntensity = 3.0f;
+    public float m_sunIntensity = 2.0f;
     public int m_AtmosphereSamples = 32;
     public float m_AtmosphereRadius = 6471000;
     public Vector3 m_ObservationPos = new Vector3(0.0f, 6371000.0f, 0.0f);
@@ -33,18 +33,6 @@ public class SunnySky : MonoBehaviour
     private Texture2D m_transmittance, m_irradiance;
 
     private Texture3D m_inscatter;
-
-    public Texture2D m_perlinNoise2D;
-
-    public Texture3D m_cloudBaseTexture;
-    public Texture3D m_cloudDetailTexture;
-    public Texture2D m_weatherMapTexture;
-
-    [SerializeField, Range(0,2)]
-    private float coverageScale = 1.2f;
-
-    [SerializeField, Range(0,2)]
-    private float sunAttenuation = 1.0f;
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
@@ -107,14 +95,6 @@ public class SunnySky : MonoBehaviour
         mat.SetTexture("_Transmittance", m_transmittance);
         mat.SetTexture("_Irradiance", m_irradiance);
         mat.SetTexture("_Inscatter", m_inscatter);
-        mat.SetTexture("_PerlinNoise2D", m_perlinNoise2D);
-        mat.SetTexture("_NoiseTex", m_cloudBaseTexture);
-        mat.SetTexture("_CloudDetailTexture", m_cloudDetailTexture);
-        mat.SetTexture("_WeatherMapTex", m_weatherMapTexture);
-
-
-        mat.SetFloat("_CoverageScale", coverageScale);
-        mat.SetFloat("_SunAttenuation", sunAttenuation);
     }
 
     private float[] LoadRawFile(string path, int size)

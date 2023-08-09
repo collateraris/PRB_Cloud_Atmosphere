@@ -19,7 +19,6 @@ Shader "Render/CloudShader"
             #pragma enable_d3d11_debug_symbols
 
             sampler2D _MainTex;
-            float4 _CameraPosWS;
             float _CameraNearPlane;
             float4x4 _MainCameraInvProj;
             float4x4 _MainCameraInvView;

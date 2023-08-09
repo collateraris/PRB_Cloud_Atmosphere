@@ -22,8 +22,8 @@
 #define RES_NU 8.0
 
 #define cloudSpeed 0.02
-#define cloudHeight 1600.0
-#define cloudThickness 500.0
+#define cloudHeight 1500.0
+#define cloudThickness 3500.0
 #define cloudMinHeight cloudHeight
 #define cloudMaxHeight (cloudThickness + cloudMinHeight)
 #define cloudDensity 0.03
@@ -33,12 +33,21 @@
 int ATMOSPHERE_SAMPLES;
 float ATMOSPHERE_RADIUS;
 float3 EARTH_POS;
+float4 _CameraPosWS;
 float3 SUN_DIR;
 float SUN_INTENSITY;
 float iTime;
 
 float _CoverageScale;
 float _SunAttenuation;
+float _ScatteringCoEff;
+float _PowderCoEff;
+float _PowderScale;
+float _HG;
+
+float _SilverIntensity;
+float _SilverSpread;
+
 
 sampler2D _Transmittance, _Irradiance;
 sampler2D _WeatherMapTex;
@@ -119,7 +128,10 @@ float cloudGetHeight(float3 position)
 
 float cloudSampleDensity(float3 position)
 {
-    position.y = position.y - GetPlanetRadius();
+    float2 weather_uv = position.xz * 5 * 1e-5;
+    weather_uv += 0.8;
+    float4 weather = tex2Dlod(_WeatherMapTex, float4(weather_uv, 0, 0));
+
     position.xz += 100 * iTime;
     float scale = 5 * 1e-5;
     float4 low_frequency_noises = tex3Dlod(_NoiseTex , float4 ( position * scale , 0 ));
@@ -133,9 +145,6 @@ float cloudSampleDensity(float3 position)
 
     float height = cloudGetHeight(position);
     
-    float2 weather_uv = position.xz * 1e-5;
-    weather_uv += 0.8;
-    float4 weather = tex2Dlod(_WeatherMapTex, float4(weather_uv, 0, 0));
     float cloud_coverage = weather.r;
     cloud_coverage = pow(cloud_coverage, remap(height, 0.7, 0.8, 1.0, lerp(1.0, 0.5, 0.3)));
 				
@@ -179,6 +188,20 @@ float getClouds(float3 p)
     return clouds * cloudDensity;
 }
 
+float BeerLambert(float opticalDepth)
+{
+    //original paper add a rain parameter here
+    //to make a darker clooud for weather texture's g chanel
+    float ExtinctionCoEff = _ScatteringCoEff; // * weather.g
+    return exp( -ExtinctionCoEff * opticalDepth);
+}
+
+float Powder(float opticalDepth)
+{
+    float ExtinctionCoEff = _PowderCoEff;
+    return 1.0f - exp( - 2 * ExtinctionCoEff * opticalDepth) * _PowderScale;
+}
+
 float cloudSunDirectDensity(float3 pos)
 {
     float delta = abs(cloudMinHeight-cloudMaxHeight)*0.01;
@@ -207,7 +230,13 @@ float cloudSunDirectDensity(float3 pos)
 
 float3 getVolumetricCloudsScattering(float3 pos)
 {
-    return exp(-cloudSunDirectDensity(pos) * _SunAttenuation) * SUN_INTENSITY;
+    float densitySum = cloudSunDirectDensity(pos);
+    float lightEnergy1 = BeerLambert(densitySum);
+    float lightEnergy2 = BeerLambert(densitySum*0.33)*0.65;
+    float lightEnergy = max(lightEnergy1,lightEnergy2);
+    float powder = Powder(densitySum);
+
+    return lightEnergy * powder * 2;
 }
 
 float getCloudShadow(float3 pos)
@@ -366,15 +395,12 @@ float phaseFunRayScattering(float cosTheta)
     return 3 * M_PI / 16 * (1 + cosTheta * cosTheta);
 }
 
-float phase2Lobes(float x)
-{
-    const float m = 0.5;
-    const float gm = 0.8;
+float phase2Lobes(float cosThea)
+{   
+	float hgForward = phaseFunMieScattering(cosThea, _HG);
+    float hgBackward = phaseFunMieScattering(cosThea, 0.99 - _SilverSpread) * _SilverIntensity;
     
-	float lobe1 = phaseFunMieScattering(x, 0.8 * gm);
-    float lobe2 = phaseFunMieScattering(x, -0.5 * gm);
-    
-    return lerp(lobe2, lobe1, m);
+    return max(hgForward, hgBackward);
 }
 
 float getHeightFogOD(float height)
@@ -385,39 +411,45 @@ float getHeightFogOD(float height)
 }
 
 float4 calculateVolumetricClouds(in float3 viewDir, in float3 skyColor)
-{
-    float bottomSphere = raySphereIntersect(EARTH_POS, viewDir, GetPlanetRadius() + cloudMinHeight).y;
-    float topSphere = raySphereIntersect(EARTH_POS, viewDir, GetPlanetRadius() + cloudMaxHeight).y;
-    
-    const int steps = ATMOSPHERE_SAMPLES;
+{   
+    const int steps = 128;
     const float iSteps = 1.0 / float(steps);
+
+    float bottom = cloudMinHeight / viewDir.y;
+    float top = cloudMaxHeight / viewDir.y;
     
-    float delta = abs(bottomSphere - topSphere) * iSteps;
-    float3 startPosition = EARTH_POS + viewDir * bottomSphere;
+    float delta = abs(top - bottom) * iSteps;
+    float3 startPosition = _CameraPosWS + viewDir * bottom;
     float3 cloudPos = startPosition;
 
     float3 scattering = float3(0., 0., 0.);
     float transmittance = 1.0;
 
     float3 lightDir = _WorldSpaceLightPos0.xyz;
-    float sunDirDotView = max(0, dot(viewDir, lightDir));
+    float sunDirDotView = dot(viewDir, lightDir);
     float phase = phase2Lobes(sunDirDotView);
 
     [loop]
-    for (int i = 0; i < ATMOSPHERE_SAMPLES; i++)
-    {
+    for (int i = 0; i < steps; i++)
+    {       
         float opticalDepth = cloudSampleDensity(cloudPos) * delta;
         if (opticalDepth > 0.)
         {
             scattering += phase * opticalDepth * getVolumetricCloudsScattering(cloudPos) * transmittance;
-            transmittance *= exp(-opticalDepth);
+            transmittance *= BeerLambert(opticalDepth);
         }
 
         cloudPos += viewDir * delta;
     }
 
-    float blending=saturate(length(startPosition) * 0.00001);
-    return float4(lerp(skyColor, skyColor * transmittance + scattering, blending), 1);
+    float4 final = float4(1., 1., 1., 1.);
+    final.a = saturate(1. - transmittance);
+    final.rgb = scattering;
+
+    float horizonFade = (1.0f - saturate(top / 50000));
+	final *= horizonFade;
+
+    return final + saturate(1. - final.a) * float4(skyColor, 0);
 }
 
 
