@@ -44,6 +44,7 @@ float _ScatteringCoEff;
 float _PowderCoEff;
 float _PowderScale;
 float _HG;
+float _CloudDensityScale;
 
 float _SilverIntensity;
 float _SilverSpread;
@@ -156,7 +157,7 @@ float cloudSampleDensity(float3 position)
 
     final_cloud = remap(base_cloud_with_coverage, high_freq_noise_modifier * 0.2 , 1.0, 0.0, 1.0);
 
-    return saturate(final_cloud);
+    return saturate(final_cloud * _CloudDensityScale);
 }
 
 float getClouds(float3 p)
@@ -410,7 +411,7 @@ float phase2Lobes(float cosThea)
 	float hgForward = phaseFunMieScattering(cosThea, _HG);
     float hgBackward = phaseFunMieScattering(cosThea, 0.99 - _SilverSpread) * _SilverIntensity;
     
-    return max(hgForward, hgBackward);
+    return hgForward + hgBackward;
 }
 
 float getHeightFogOD(float height)

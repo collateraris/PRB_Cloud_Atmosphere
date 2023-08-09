@@ -44,13 +44,16 @@ public class Clouds : MonoBehaviour
     [SerializeField, Range(0.01f, 1f)]
     private float _silverSpread = 0.82f;
 
+    [SerializeField, Range(0.1f, 100)]
+    private float cloudDensityScale = 1.24f;
+
     void OnGUI()
     {
         GUI.Label(new Rect(10, 10, 100, 30), "Cloud Coverage");
         coverageScale = GUI.HorizontalSlider(new Rect(10, 30, 100, 30), coverageScale, 0, 2);
 
-        GUI.Label(new Rect(10, 40, 100, 30), "Sun Attenuation");
-        sunAttenuation = GUI.HorizontalSlider(new Rect(10, 60, 100, 30), sunAttenuation, 0, 2);
+        GUI.Label(new Rect(10, 40, 100, 30), "Cloud Density");
+        cloudDensityScale = GUI.HorizontalSlider(new Rect(10, 60, 100, 30), cloudDensityScale, 0, 100);
     }
     // Start is called before the first frame update
     void Start()
@@ -87,6 +90,7 @@ public class Clouds : MonoBehaviour
         m_cloudsMaterial.SetFloat("_HG", _hg);
         m_cloudsMaterial.SetFloat("_SilverIntensity", _silverIntensity);
         m_cloudsMaterial.SetFloat("_SilverSpread", _silverSpread);
+        m_cloudsMaterial.SetFloat("_CloudDensityScale", cloudDensityScale);
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
