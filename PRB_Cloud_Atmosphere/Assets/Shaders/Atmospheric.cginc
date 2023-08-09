@@ -134,12 +134,13 @@ float cloudSampleDensity(float3 position)
     float4 weather = tex2Dlod(_WeatherMapTex, float4(weather_uv, 0, 0));
 
     position.xz += 100 * iTime;
-    float scale = 5 * 1e-5;
-    float4 low_frequency_noises = tex3Dlod(_NoiseTex , float4 ( position * scale , 0 ));
+    float scale1 = 5 * 1e-5;
+    float4 low_frequency_noises = tex3Dlod(_NoiseTex , float4 ( position * scale1 , 0 ));
     float low_freq_fBm = ( low_frequency_noises.g * 0.625 ) + ( low_frequency_noises.b * 0.25 ) + ( low_frequency_noises.a * 0.125 );
     float base_cloud = remap(low_frequency_noises.r, -(1.0 - low_freq_fBm), 1.0, 0.0, 1.0);
 
-    float3 high_frequency_noises = tex3Dlod(_CloudDetailTexture , float4 ( position * scale , 0 )).rgb;
+    float scale2 = 40 * 1e-5;
+    float3 high_frequency_noises = tex3Dlod(_CloudDetailTexture , float4 ( position * scale2 , 0 )).rgb;
 	float high_freq_fBm = ( high_frequency_noises.r * 0.625 ) + ( high_frequency_noises.g * 0.25 ) + ( high_frequency_noises.b * 0.125 );
 	
     float SNsample = base_cloud * 0.85 + high_freq_fBm * 0.15;
