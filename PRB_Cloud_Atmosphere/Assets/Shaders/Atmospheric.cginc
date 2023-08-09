@@ -23,7 +23,7 @@
 
 #define cloudSpeed 0.02
 #define cloudHeight 1500.0
-#define cloudThickness 3500.0
+#define cloudThickness 2500.0
 #define cloudMinHeight cloudHeight
 #define cloudMaxHeight (cloudThickness + cloudMinHeight)
 #define cloudDensity 0.03

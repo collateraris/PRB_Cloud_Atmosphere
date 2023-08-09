@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a730a43c93613244b443773141ce43d, type: 3}
   m_Name: DetailWorleyNoise
   m_EditorClassIdentifier: 
-  _dimensions: 2
+  _dimensions: 3
   _fractal: 4
   _resolution: 32
   _frequency: 4
