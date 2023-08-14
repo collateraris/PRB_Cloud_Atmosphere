@@ -16,6 +16,7 @@ Shader "Render/CloudShader"
             #pragma fragment frag
             #pragma target 5.0
             #include "Atmospheric.cginc"
+            #include "Ocean.cginc"
             #pragma enable_d3d11_debug_symbols
 
             sampler2D _MainTex;
@@ -57,8 +58,8 @@ Shader "Render/CloudShader"
                 float4 skyColor = tex2D(_MainTex, i.uv);
                 float3 dir = normalize(i.dir_ws.xyz);
                 float4 cloudCol = calculateVolumetricClouds(dir, skyColor);
-
-				return float4(hdr(cloudCol.xyz), cloudCol.w);
+                float4 oceanCol = calculateOcean(dir, cloudCol);
+				return float4(hdr(oceanCol.xyz), oceanCol.w);
             }
             ENDCG
         }
