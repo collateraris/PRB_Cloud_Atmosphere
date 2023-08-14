@@ -67,6 +67,7 @@ public class Clouds : MonoBehaviour
         var invMat = GL.GetGPUProjectionMatrix(m_camera.projectionMatrix, false).inverse;
         m_cloudsMaterial.SetMatrix("_MainCameraInvProj", invMat);
         m_cloudsMaterial.SetMatrix("_MainCameraInvView", m_camera.cameraToWorldMatrix);
+        m_cloudsMaterial.SetMatrix("_CameraViewProj", m_camera.projectionMatrix * m_camera.worldToCameraMatrix);
         m_cloudsMaterial.SetVector("_CameraPosWS", m_camera.transform.position);
         m_cloudsMaterial.SetFloat("_CameraNearPlane", m_camera.nearClipPlane);
 

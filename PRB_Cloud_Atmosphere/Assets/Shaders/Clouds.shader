@@ -15,14 +15,17 @@ Shader "Render/CloudShader"
             #pragma vertex vert
             #pragma fragment frag
             #pragma target 5.0
-            #include "Atmospheric.cginc"
-            #include "Ocean.cginc"
-            #pragma enable_d3d11_debug_symbols
 
             sampler2D _MainTex;
             float _CameraNearPlane;
             float4x4 _MainCameraInvProj;
             float4x4 _MainCameraInvView;
+            float4x4 _CameraViewProj;
+
+
+            #include "Atmospheric.cginc"
+            #include "Ocean.cginc"
+            #pragma enable_d3d11_debug_symbols
 
             struct vIn
             {

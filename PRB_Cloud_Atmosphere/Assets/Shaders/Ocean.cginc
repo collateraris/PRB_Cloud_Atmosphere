@@ -99,12 +99,17 @@ float4 calculateOcean(in float3 viewDir, in float4 skyColor)
     float3 waterHitPos = _CameraPosWS.xyz + viewDir * dist;
 
     float3 N = normal(waterHitPos.xz, 0.01, WATER_DEPTH);
+    N = lerp(N, float3(0.0, 1.0, 0.0), 0.8 * min(1.0, sqrt(dist*0.01) * 1.1));
 
     float fresnel = (0.04 + (1.0-0.04)*(pow(1.0 - max(0.0, dot(-N, viewDir)), 5.0)));
 
+    float3 reflectDir = normalize(reflect(viewDir, N));
+
+	float3 reflection = calculateVolumetricClouds(reflectDir, skyColor);
+
     float3 scattering = float3(0.293, 0.698, 0.1717) * (0.2 + (waterHitPos.y + WATER_DEPTH) / WATER_DEPTH);
 
-    float3 color = fresnel * float3(1., 1., 1.) + (1 - fresnel) * scattering;
+    float3 color = fresnel * reflection + (1.0 - fresnel) * scattering;
     return float4(color, 1.);
 }
 

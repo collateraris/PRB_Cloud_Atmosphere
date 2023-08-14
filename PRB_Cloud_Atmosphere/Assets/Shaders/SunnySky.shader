@@ -36,7 +36,7 @@ Shader "Atmosphere/SunnySky"
 			{
 				float3 dir = normalize(IN.worldPos-_WorldSpaceCameraPos);
 			    
-			    float sun = step(cos(M_PI / 360.0 ), dot(dir, SUN_DIR));
+			    float sun = step(cos(M_PI / 360.0 * 10. ), dot(dir, SUN_DIR));
 			    
 			    float3 sunColor = float3(sun,sun,sun) * SUN_INTENSITY;
 
